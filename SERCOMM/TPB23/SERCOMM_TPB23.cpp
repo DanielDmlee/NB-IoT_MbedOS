@@ -16,33 +16,56 @@
  */
 
 #include "SERCOMM_TPB23_CellularNetwork.h"
-#include "SERCOMM_TPB23_CellularPower.h"
-#include "SERCOMM_TPB23_CellularSIM.h"
 #include "SERCOMM_TPB23_CellularContext.h"
+#include "SERCOMM_TPB23_CellularInformation.h"
 #include "SERCOMM_TPB23.h"
+#include "CellularLog.h"
 
 #define CONNECT_DELIM         "\r\n"
 #define CONNECT_BUFFER_SIZE   (1280 + 80 + 80) // AT response + sscanf format
 #define CONNECT_TIMEOUT       8000
 
-#define MAX_STARTUP_TRIALS 5
-#define MAX_RESET_TRIALS 5
-
 using namespace events;
 using namespace mbed;
 
-static const AT_CellularBase::SupportedFeature unsupported_features[] =  {
-    AT_CellularBase::AT_CGAUTH, 
-    AT_CellularBase::SUPPORTED_FEATURE_END_MARK
+static const intptr_t cellular_properties[AT_CellularBase::PROPERTY_MAX] = {
+    AT_CellularNetwork::RegistrationModeLAC,        // C_EREG
+    AT_CellularNetwork::RegistrationModeDisable,    // C_GREG
+    AT_CellularNetwork::RegistrationModeDisable,    // C_REG
+    1,  // AT_CGSN_WITH_TYPE
+    1,  // AT_CGDATA
+    0,  // AT_CGAUTH
+    1,  // AT_CNMI
+    1,  // AT_CSMP
+    1,  // AT_CMGF
+    1,  // AT_CSDH
+    1,  // PROPERTY_IPV4_STACK
+    0,  // PROPERTY_IPV6_STACK
+    0,  // PROPERTY_IPV4V6_STACK
+    0,  // PROPERTY_NON_IP_PDP_TYPE
+    1,  // PROPERTY_AT_CGEREP
 };
 
 SERCOMM_TPB23::SERCOMM_TPB23(FileHandle *fh) : AT_CellularDevice(fh)
 {
-    AT_CellularBase::set_unsupported_features(unsupported_features);
+    AT_CellularBase::set_cellular_properties(cellular_properties);
 }
 
-SERCOMM_TPB23::~SERCOMM_TPB23()
+nsapi_error_t SERCOMM_TPB23::get_sim_state(SimState &state)
 {
+    _at->lock();
+    _at->flush();
+    _at->cmd_start("AT+NCCID?");
+    _at->cmd_stop();
+    _at->resp_start("+NCCID:");
+    if (_at->info_resp()) {
+        state = SimStateReady;
+    } else {
+        tr_warn("SIM not readable.");
+        state = SimStateUnknown; // SIM may not be ready yet
+    }
+    _at->resp_stop();
+    return _at->unlock_return_error();
 }
 
 AT_CellularNetwork *SERCOMM_TPB23::open_network_impl(ATHandler &at)
@@ -50,17 +73,36 @@ AT_CellularNetwork *SERCOMM_TPB23::open_network_impl(ATHandler &at)
     return new SERCOMM_TPB23_CellularNetwork(at);
 }
 
-AT_CellularPower *SERCOMM_TPB23::open_power_impl(ATHandler &at)
+AT_CellularContext *SERCOMM_TPB23::create_context_impl(ATHandler &at, const char *apn, bool cp_req, bool nonip_req)
 {
-    return new SERCOMM_TPB23_CellularPower(at);
+    return new SERCOMM_TPB23_CellularContext(at, this, apn, cp_req, nonip_req);
 }
 
-AT_CellularSIM *SERCOMM_TPB23::open_sim_impl(ATHandler &at)
+AT_CellularInformation *SERCOMM_TPB23::open_information_impl(ATHandler &at)
 {
-    return new SERCOMM_TPB23_CellularSIM(at);
+    return new SERCOMM_TPB23_CellularInformation(at);
 }
 
-AT_CellularContext *SERCOMM_TPB23::create_context_impl(ATHandler &at, const char *apn)
+nsapi_error_t SERCOMM_TPB23::init()
 {
-    return new SERCOMM_TPB23_CellularContext(at, this, apn);
+    _at->lock();
+    _at->flush();
+    _at->cmd_start("AT");
+    _at->cmd_stop_read_resp();
+
+    _at->cmd_start("AT+CMEE="); // verbose responses
+    _at->write_int(1);
+    _at->cmd_stop_read_resp();
+
+    return _at->unlock_return_error();
 }
+
+#if MBED_CONF_SERCOMM_TPB23_PROVIDE_DEFAULT
+#include "UARTSerial.h"
+CellularDevice *CellularDevice::get_default_instance()
+{
+    static UARTSerial serial(MBED_CONF_SERCOMM_TPB23_TX, MBED_CONF_SERCOMM_TPB23_RX, MBED_CONF_SERCOMM_TPB23_BAUDRATE);
+    static SERCOMM_TPB23 device(&serial);
+    return &device;
+}
+#endif

@@ -25,13 +25,15 @@ namespace mbed {
 class SERCOMM_TPB23 : public AT_CellularDevice {
 public:
     SERCOMM_TPB23(FileHandle *fh);
-    virtual ~SERCOMM_TPB23();
+
+public: // AT_CellularDevice
+    virtual nsapi_error_t get_sim_state(SimState &state);
 
 protected: // AT_CellularDevice
     virtual AT_CellularNetwork *open_network_impl(ATHandler &at);
-    virtual AT_CellularPower *open_power_impl(ATHandler &at);
-    virtual AT_CellularSIM *open_sim_impl(ATHandler &at);
-    virtual AT_CellularContext *create_context_impl(ATHandler &at, const char *apn);
+	virtual AT_CellularContext *create_context_impl(ATHandler &at, const char *apn, bool cp_req = false, bool nonip_req = false);
+    virtual AT_CellularInformation *open_information_impl(ATHandler &at);
+    virtual nsapi_error_t init();
 
 public: // NetworkInterface
     void handle_urc(FileHandle *fh);

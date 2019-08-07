@@ -15,25 +15,27 @@
  * limitations under the License.
  */
 
-#ifndef SERCOMM_TPB23_CELLULAR_SIM_H_
-#define SERCOMM_TPB23_CELLULAR_SIM_H_
-
-#include "AT_CellularSIM.h"
+#include "SERCOMM_TPB23_CellularInformation.h"
 
 namespace mbed {
 
-class SERCOMM_TPB23_CellularSIM : public AT_CellularSIM {
-public:
-    SERCOMM_TPB23_CellularSIM(ATHandler &atHandler);
-    virtual ~SERCOMM_TPB23_CellularSIM();
+SERCOMM_TPB23_CellularInformation::SERCOMM_TPB23_CellularInformation(ATHandler &at) : AT_CellularInformation(at)
+{
+}
 
-public: //from CellularSIM
-    virtual nsapi_error_t get_sim_state(SimState &state);
-    virtual nsapi_error_t get_iccid(char *buf, size_t buf_size);
-    virtual nsapi_error_t change_pin(const char *sim_pin, const char *new_pin);
-    virtual nsapi_error_t set_pin_query(const char *sim_pin, bool query_pin);
-};
+SERCOMM_TPB23_CellularInformation::~SERCOMM_TPB23_CellularInformation()
+{
+}
 
-} // namespace mbed
+nsapi_error_t SERCOMM_TPB23_CellularInformation::get_iccid(char *buf, size_t buf_size)
+{
+    _at.lock();
+    _at.cmd_start("AT+NCCID?");
+    _at.cmd_stop();
+    _at.resp_start("+NCCID:");
+    _at.read_string(buf, buf_size);
+    _at.resp_stop();
+    return _at.unlock_return_error();
+}
 
-#endif // SERCOMM_TPB23_CELLULAR_SIM_H_
+} /* namespace mbed */

@@ -15,24 +15,21 @@
  * limitations under the License.
  */
 
-#ifndef SERCOMM_TPB23_CELLULAR_POWER_H_
-#define SERCOMM_TPB23_CELLULAR_POWER_H_
+#ifndef SERCOMM_TPB23_CELLULARINFORMATION_H_
+#define SERCOMM_TPB23_CELLULARINFORMATION_H_
 
-#include "AT_CellularPower.h"
+#include "AT_CellularInformation.h"
 
 namespace mbed {
 
-class SERCOMM_TPB23_CellularPower : public AT_CellularPower {
+class SERCOMM_TPB23_CellularInformation : public AT_CellularInformation {
 public:
-    SERCOMM_TPB23_CellularPower(ATHandler &atHandler);
-    virtual ~SERCOMM_TPB23_CellularPower();
+    SERCOMM_TPB23_CellularInformation(ATHandler &at);
+    virtual ~SERCOMM_TPB23_CellularInformation();
 
-public: //from CellularPower
-    virtual nsapi_error_t set_at_mode();
-
-    virtual nsapi_error_t reset();
+public:
+    virtual nsapi_error_t get_iccid(char *buf, size_t buf_size);
 };
 
-} // namespace mbed
-
-#endif // SERCOMM_TPB23_CELLULAR_POWER_H_
+} /* namespace mbed */
+#endif // SERCOMM_TPB23_CELLULARINFORMATION_H_
