@@ -27,10 +27,13 @@ using namespace mbed_cellular_util;
 SERCOMM_TPB23_CellularStack::SERCOMM_TPB23_CellularStack(ATHandler &atHandler, int cid, nsapi_ip_stack_t stack_type) : AT_CellularStack(atHandler, cid, stack_type)
 {
     _at.set_urc_handler("+NSONMI:", mbed::Callback<void()>(this, &SERCOMM_TPB23_CellularStack::urc_nsonmi));
+    _at.set_urc_handler("+NSOCLI:", mbed::Callback<void()>(this, &SERCOMM_TPB23_CellularStack::urc_nsocli));
 }
 
 SERCOMM_TPB23_CellularStack::~SERCOMM_TPB23_CellularStack()
 {
+    _at.set_urc_handler("+NSONMI:", NULL);
+    _at.set_urc_handler("+NSOCLI:", NULL);
 }
 
 nsapi_error_t SERCOMM_TPB23_CellularStack::socket_listen(nsapi_socket_t handle, int backlog)
@@ -48,7 +51,7 @@ nsapi_error_t SERCOMM_TPB23_CellularStack::socket_connect(nsapi_socket_t handle,
     CellularSocket *socket = (CellularSocket *)handle;
 
     _at.lock();
-    if (!socket->created) {
+    if (socket->id == -1) {
         const nsapi_error_t error_create = create_socket_impl(socket);
         if (error_create != NSAPI_ERROR_OK) {
             return error_create;
@@ -88,6 +91,28 @@ void SERCOMM_TPB23_CellularStack::urc_nsonmi()
     }
 }
 
+void SERCOMM_TPB23_CellularStack::urc_nsocli()
+{
+    int sock_id = _at.read_int();
+
+    const nsapi_error_t err = _at.get_last_error();
+
+    if (err != NSAPI_ERROR_OK) {
+        return;
+    }
+
+    CellularSocket *sock = find_socket(sock_id);
+
+    if (sock) {
+        sock->closed = true;
+        if (sock->_cb) {
+            sock->_cb(sock->_data);
+        }
+        tr_info("Socket closed %d", sock_id);
+    }
+}
+
+
 int SERCOMM_TPB23_CellularStack::get_max_socket_count()
 {
     return TPB23_SOCKET_MAX;
@@ -100,6 +125,11 @@ bool SERCOMM_TPB23_CellularStack::is_protocol_supported(nsapi_protocol_t protoco
 
 nsapi_error_t SERCOMM_TPB23_CellularStack::socket_close_impl(int sock_id)
 {
+    CellularSocket *sock = find_socket(sock_id);
+
+    if (sock && sock->closed) {
+        return NSAPI_ERROR_OK;
+    }
     _at.cmd_start("AT+NSOCL=");
     _at.write_int(sock_id);
     _at.cmd_stop_read_resp();
@@ -157,8 +187,8 @@ nsapi_error_t SERCOMM_TPB23_CellularStack::create_socket_impl(CellularSocket *so
     // Check for duplicate socket id delivered by modem
     for (int i = 0; i < TPB23_SOCKET_MAX; i++) {
         CellularSocket *sock = _socket[i];
-        if (sock && sock->created && sock->id == sock_id) {
-            tr_error("Duplicate socket index: %d created:%d, sock_id: %d", i, sock->created, sock_id);
+        if (sock && sock->id != -1 && sock->id == sock_id) {
+            tr_error("Duplicate socket index: %d, sock_id: %d", i, sock_id);
             return NSAPI_ERROR_NO_SOCKET;
         }
     }
@@ -166,7 +196,6 @@ nsapi_error_t SERCOMM_TPB23_CellularStack::create_socket_impl(CellularSocket *so
     tr_info("Socket create id: %d", sock_id);
 
     socket->id = sock_id;
-    socket->created = true;
 
     return NSAPI_ERROR_OK;
 }
@@ -174,6 +203,10 @@ nsapi_error_t SERCOMM_TPB23_CellularStack::create_socket_impl(CellularSocket *so
 nsapi_size_or_error_t SERCOMM_TPB23_CellularStack::socket_sendto_impl(CellularSocket *socket, const SocketAddress &address,
                                                                      const void *data, nsapi_size_t size)
 {
+    //AT_CellularStack::socket_sendto(...) will create a socket on modem if it wasn't
+    // open already.
+    MBED_ASSERT(socket->id != -1);
+
     int sent_len = 0;
 
     if (size > PACKET_SIZE_MAX) {
@@ -220,6 +253,10 @@ nsapi_size_or_error_t SERCOMM_TPB23_CellularStack::socket_sendto_impl(CellularSo
 nsapi_size_or_error_t SERCOMM_TPB23_CellularStack::socket_recvfrom_impl(CellularSocket *socket, SocketAddress *address,
                                                                        void *buffer, nsapi_size_t size)
 {
+    //AT_CellularStack::socket_recvfrom(...) will create a socket on modem if it wasn't
+    // open already.
+    MBED_ASSERT(socket->id != -1);
+
     nsapi_size_or_error_t recv_len = 0;
     int port;
     char ip_address[NSAPI_IP_SIZE];

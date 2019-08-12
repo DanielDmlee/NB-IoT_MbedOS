@@ -57,6 +57,7 @@ protected: // AT_CellularStack
 private:
     // URC handlers
     void urc_nsonmi();
+    void urc_nsocli();
 };
 } // namespace mbed
 #endif /* SERCOMM_TPB23_CELLULARSTACK_H_ */

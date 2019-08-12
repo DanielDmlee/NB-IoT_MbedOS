@@ -29,21 +29,21 @@ using namespace events;
 using namespace mbed;
 
 static const intptr_t cellular_properties[AT_CellularBase::PROPERTY_MAX] = {
-    AT_CellularNetwork::RegistrationModeLAC,        // C_EREG
-    AT_CellularNetwork::RegistrationModeDisable,    // C_GREG
-    AT_CellularNetwork::RegistrationModeDisable,    // C_REG
+    AT_CellularNetwork::RegistrationModeLAC,    // C_EREG
+    AT_CellularNetwork::RegistrationModeLAC,    // C_GREG
+    AT_CellularNetwork::RegistrationModeLAC,    // C_REG
     1,  // AT_CGSN_WITH_TYPE
-    1,  // AT_CGDATA
-    0,  // AT_CGAUTH
-    1,  // AT_CNMI
-    1,  // AT_CSMP
+    0,  // AT_CGDATA
+    0,  // AT_CGAUTH,
+    0,  // AT_CNMI
+    0,  // AT_CSMP
     1,  // AT_CMGF
-    1,  // AT_CSDH
+    0,  // AT_CSDH
     1,  // PROPERTY_IPV4_STACK
     0,  // PROPERTY_IPV6_STACK
     0,  // PROPERTY_IPV4V6_STACK
-    0,  // PROPERTY_NON_IP_PDP_TYPE
-    1,  // PROPERTY_AT_CGEREP
+    1,  // PROPERTY_NON_IP_PDP_TYPE
+    0,  // PROPERTY_AT_CGEREP
 };
 
 SERCOMM_TPB23::SERCOMM_TPB23(FileHandle *fh) : AT_CellularDevice(fh)
