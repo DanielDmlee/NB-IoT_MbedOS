@@ -28,11 +28,6 @@ SERCOMM_TPB23_CellularNetwork::~SERCOMM_TPB23_CellularNetwork()
 {
 }
 
-AT_CellularNetwork::RegistrationMode SERCOMM_TPB23_CellularNetwork::has_registration(RegistrationType reg_tech)
-{
-    return (reg_tech == C_EREG) ? RegistrationModeLAC : RegistrationModeDisable;
-}
-
 nsapi_error_t SERCOMM_TPB23_CellularNetwork::set_access_technology_impl(RadioAccessTechnology opRat)
 {
     if (opRat != RAT_NB1) {
