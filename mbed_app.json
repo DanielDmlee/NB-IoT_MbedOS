@@ -1,6 +1,6 @@
 {
     "config": {
-        "sock-type": "TCP",
+        "sock-type": "UDP",
         "echo-server-hostname": {
             "help": "Echo server host name.",
             "value": "\"echo.mbedcloudtesting.com\""
