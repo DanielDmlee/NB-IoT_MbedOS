@@ -90,7 +90,10 @@ nsapi_error_t SERCOMM_TPB23::init()
     _at->cmd_start("AT");
     _at->cmd_stop_read_resp();
 
-    _at->cmd_start("AT+CMEE="); // verbose responses
+    _at->cmd_start("AT+CPSMS=0");    //Power saving mode disable
+    _at->cmd_stop_read_resp();
+    
+	_at->cmd_start("AT+CMEE="); // verbose responses
     _at->write_int(1);
     _at->cmd_stop_read_resp();
 
